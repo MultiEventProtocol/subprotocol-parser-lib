@@ -87,6 +87,5 @@ git submodule update --remote --merge
 sudo apt install emacs
 make tangle
 make build
-make test
 make demo
 ```
