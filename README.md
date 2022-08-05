@@ -31,7 +31,7 @@ contract MEP_solidity_example_test {
 }
 ```
 
-result:
+Result:
 ```lisp
 (:SRC
  ((:PRAGMA-DEF (:PRAGMA "solidity ^0.8.0;"))
