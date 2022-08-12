@@ -80,12 +80,8 @@ Result:
 
 ## install and prepare to work
 ```sh
-git clone --recurse-submodule git@github.com:MultiEventProtocol/subprotocol-parser-lib.git
+git clone git@github.com:MultiEventProtocol/subprotocol-parser-lib.git
 cd subprotocol-parser-lib/
-git submodule init
-git submodule update --remote --merge
-sudo apt install emacs
-make tangle
 make build
 make demo
 ```
