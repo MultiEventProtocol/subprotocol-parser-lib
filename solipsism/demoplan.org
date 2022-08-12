@@ -1,0 +1,46 @@
+#+STARTUP: showall indent hidestars
+
+* Подготовка
+
+- Собрать бинарник
+  #+BEGIN_SRC sh
+    make build
+  #+END_SRC
+
+- Прогнать тесты
+  #+BEGIN_SRC sh
+    ./solcheck -t tests
+  #+END_SRC
+
+* Как разбирается код
+
+- Показать пример кода (минимальный контракт)
+  #+BEGIN_SRC sh
+    emacs -nw test_min.sol
+  #+END_SRC
+
+- Выполнить разбор в файл
+  #+BEGIN_SRC sh
+    ./solcheck -p test_min.sol -o test_min.el
+  #+END_SRC
+
+- Показать дерево разбора
+  #+BEGIN_SRC sh
+    emacs -nw test_min.el
+  #+END_SRC
+
+* Сравнение контрактов
+
+- Показать предыдущий пример и изменный пример
+  - Открыть test_min.sol
+  - Открыть test_change.sol
+    - Добавить что-нибудь
+    - Удалить что-нибудь
+    - Изменить что-нибудь
+- Показать различия
+- Выполнить сравнение с выводом в файл
+  #+BEGIN_SRC sh
+   ./solcheck -p test_min.sol -c test_change.sol -o test.el
+  #+END_SRC
+- Открыть test.el
+- Показать результат :|+new| и :|-new|

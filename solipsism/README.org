@@ -1,0 +1,3 @@
+Static analyzer for the Solidity programming language.
+
+Aimed at audit and finding vulnerabilities in smart contracts.
