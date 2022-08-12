@@ -1,12 +1,10 @@
 SHELL = /bin/sh
 
-all: tangle build
-
-tangle:
-	make tangle -f ./solipsism/Makefile
+all: demo
 
 build:
-	make build -f  ./solipsism/Makefile
+	sbcl --load "./exec.lisp"
+	echo ":builded"
 
 demo:
 	./solipsism/solcheck -p ./mep.sol
