@@ -8,3 +8,6 @@ build:
 
 demo:
 	./solparser -p ./mep.sol
+
+sexp:
+	./solparser -p ./mep.sol -o mep.sexp
