@@ -8,10 +8,6 @@
 
 (use-package '(:alexandria :anaphora :optima))
 
-
-(defparameter *sexp* (read-from-string (read-file-into-string "mep.sexp")))
-
-
 (defun maptree-transform (predicate-transformer tree)
   (multiple-value-bind (t-tree control)
       (aif (funcall predicate-transformer tree)
@@ -93,26 +89,20 @@ last item in second form, etc."
              `(:struct-def ,struct-name :contents ,contents))))))
    param))
 
+(defun transform-uplift-event-def (param)
+  (maptree-transform
+   #'(lambda (par)
+       (match par
+         ((property :EVENT-DEF event-def)
+          (match event-def
+            ((and (property :EVENT event-name)
+                  (property :PARAMS params))
+             `(:event-def ,event-name :params ,params))))))
+   param))
+
 
 (defparameter *new*
-  (->> '(:CTRACT-BODY-ELT
-         ((:STRUCT-DEF
-           (:STRUCT "ContractId"
-            :CONTENTS (:MEMBER
-                       ((:STRUCT-NAME "network"
-                         :TYPE (:ELT-TYPE-NAME (:STRING STRING)))
-                        (:STRUCT-NAME "contractAddr"
-                         :TYPE (:ELT-TYPE-NAME (:STRING STRING)))))))
-          (:STRUCT-DEF
-           (:STRUCT "ContractEvent"
-            :CONTENTS (:MEMBER
-                       ((:STRUCT-NAME "contractId"
-                         :TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "ContractId")))))
-                        (:STRUCT-NAME "EventId"
-                         :TYPE (:ELT-TYPE-NAME (:STRING STRING)))))))))
-       (transform-struct-member)
-       (transform-uplift-members)
-       (transform-uplift-struct-def)))
+  )
 
 
 (defparameter *indent* 1)
@@ -149,11 +139,11 @@ last item in second form, etc."
 ;;     (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String"))))
 
 
-(defun %ctract-body-elt (par)
-  (format nil "~A// contract body elt comment ~%~{~A~}~%"
-          (ind)
-          (with-indent
-            (mapcar #'outer (cadr par)))))
+;; (defun %ctract-body-elt (par)
+;;   (format nil "~A// contract body elt comment ~%~{~A~}~%"
+;;           (ind)
+;;           (with-indent
+;;             (mapcar #'outer (cadr par)))))
 
 (defun %struct-def (par)
   (format nil "~Astruct ~A {~%~A~%~A}~%"
@@ -169,7 +159,6 @@ last item in second form, etc."
 ;;               ((:MEMBER-STRUCT-NAME "First" :MEMBER-STRUCT-TYPE "String")
 ;;                (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String")))))
 
-
 (defun outer (param)
   (maptree-transform
    #'(lambda (par)
@@ -184,5 +173,41 @@ last item in second form, etc."
                  (funcall fn par)))))
    param))
 
+(defun event-param (par)
+  (format nil "~A: ~A"
+          (getf par :id)
+          (caadr (getf par :type-name))))
+
+;; (event-param
+;;  `(:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from"))
+
+(defun event-params (par)
+  (format nil "~{~a~^, ~}"
+          (with-indent
+            (mapcar #'event-param (getf par :event-param)))))
+
+;; (event-params
+;;  `(:EVENT-PARAM
+;;    ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
+;;     (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID "_value"))))
+
+(defun %event-def (par)
+  (format nil "~Afn ~A(~A) {~%~A}" (ind) (getf par :event-def)
+          (with-indent
+            (event-params (getf par :params)))
+          (ind)))
+
+(%event-def
+ `(:EVENT-DEF "SomeEvent" :PARAMS
+              (:EVENT-PARAM
+               ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
+                (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID
+                            "_value")))))
+
 (print
- (outer *new*))
+ (outer (->> (read-from-string (read-file-into-string "mep.sexp"))
+             (transform-struct-member)
+             (transform-uplift-members)
+             (transform-uplift-struct-def)
+             (transform-uplift-event-def)
+             )))
