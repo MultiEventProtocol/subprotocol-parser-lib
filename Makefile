@@ -1,21 +1,32 @@
 SHELL = /bin/sh
 
-all: demo
+all: sexp transpile
 
-tangle:
-	make tangle -f ./solipsism/Makefile
+tangle-solparser:
+	make tangle -f ./parsers/solidity
 
-build:
-	sbcl --load "./exec.lisp"
+build-solparser:
+	sbcl --load "./parsers/solidity/exec.lisp"
+
+
+tangle-rustgen:
+	make tangle -f ./generators/rust
+
+build-rustgen:
+	sbcl --load "./generators/rust/exec-transpiler.lisp"
+
 
 build-transpiler:
 	sbcl --load "./exec-transpiler.lisp"
 
-demo:
-	./solparser -p ./mep.sol
-
-sexp:
+sexp: mep.sol solparser
 	./solparser -p ./mep.sol -o mep.sexp
 
-transpile:
+transpile: mep.sexp transpiler
 	./transpiler -t mep.sexp
+
+
+clean:
+	rm ./solparser
+	rm ./transpiler
+	rm ./mep.sexp
