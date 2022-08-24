@@ -1,33 +1,60 @@
-* Transpiler
+#+STARTUP: showall indent hidestars
 
-#+BEGIN_SRC lisp
+* Frame
 
-(defmacro bprint (var)
-  `(subseq (with-output-to-string (*standard-output*)
-             (pprint ,var)) 1))
+#+BEGIN_SRC lisp :tangle transpiler2.lisp :noweb tangle :comments noweb
+  ;; <<copyright>>
+  (defmacro bprint (var)
+    `(subseq (with-output-to-string (*standard-output*)
+               (pprint ,var)) 1))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (ql:quickload '(:alexandria :anaphora :optima :fare-quasiquote-extras
-                  :fare-quasiquote-optima)))
+  (eval-when (:compile-toplevel :load-toplevel :execute)
+    (ql:quickload '(:alexandria :anaphora :optima :fare-quasiquote-extras
+                    :fare-quasiquote-optima)))
 
-(use-package '(:alexandria :anaphora :optima))
+  (use-package '(:alexandria :anaphora :optima))
 
-(defun maptree-transform (predicate-transformer tree)
-  (multiple-value-bind (t-tree control)
-      (aif (funcall predicate-transformer tree)
-           it                       ;; replace returned value
-           (values tree #'mapcar))  ;; if return nil - return
-    (if (and (consp t-tree) ;; if t-tree is tree
-             control)       ;; and control is exists
-        (let ((result))     ;; then result will be result of recurse funcall
-          (setf result
-                (funcall control
-                         #'(lambda (x)
-                             (maptree-transform predicate-transformer x))
-                         t-tree))
-          result) ;; return result
-        ;; else - just return t-tree
-        t-tree)))
+  <<maptree_trasform>>
+
+  <<chain_macro>>
+
+  <<transform_struct>>
+
+  <<transform_event>>
+
+  <<indentation>>
+
+  <<gen_structs>>
+
+  <<gen_events>>
+
+  <<run>>
+#+END_SRC
+
+* Maptree Trasform
+
+#+BEGIN_SRC lisp :noweb-ref maptree_trasform
+  (defun maptree-transform (predicate-transformer tree)
+    (multiple-value-bind (t-tree control)
+        (aif (funcall predicate-transformer tree)
+             it                       ;; replace returned value
+             (values tree #'mapcar))  ;; if return nil - return
+      (if (and (consp t-tree) ;; if t-tree is tree
+               control)       ;; and control is exists
+          (let ((result))     ;; then result will be result of recurse funcall
+            (setf result
+                  (funcall control
+                           #'(lambda (x)
+                               (maptree-transform predicate-transformer x))
+                           t-tree))
+            result) ;; return result
+          ;; else - just return t-tree
+          t-tree)))
+#+END_SRC
+
+* Chain macro
+
+#+BEGIN_SRC lisp :noweb-ref chain_macro
 
 (defmacro -> (x &optional form &rest more)
   "Thread the expr through the forms. Insert X as the second item
@@ -59,160 +86,309 @@ last item in second form, etc."
 ;; (sb-cltl2:macroexpand-all '(->> 'first (cons 'second) (cons 'third)))
 ;; => (CONS 'THIRD (CONS 'SECOND 'FIRST))
 
+#+END_SRC
 
-(defun transform-struct-member (param)
-  (maptree-transform
-   #'(lambda (par)
-       (match par
-         ((and (property :STRUCT-NAME name)
-               (property :TYPE type))
-          `(:member-struct-name ,name
-            :member-struct-type ,(match type
-                                   ((property :ELT-TYPE-NAME elt-type)
-                                    (cadr elt-type))
-                                   ((property :IDENTIFIER-PATH id-path)
-                                    (cadr (car (cadr id-path))))
-                                   (otherwise :not-implemented))))))
-   param))
+* Tranform struct
 
-(defun transform-uplift-members (param)
-  (maptree-transform
-   #'(lambda (par)
-       (match par
-         ((property :MEMBER members)  `(:struct-members ,members))))
-   param))
+#+BEGIN_SRC lisp :noweb-ref transform_struct
+  (defun transform-struct-member (param)
+    (maptree-transform
+     #'(lambda (par)
+         (match par
+                ((and (property :STRUCT-NAME name)
+                      (property :TYPE type))
+                 `(:member-struct-name
+                   ,name
+                   :member-struct-type
+                   ,(match type
+                           ((property :ELT-TYPE-NAME elt-type)
+                            (cadr elt-type))
+                           ((property :IDENTIFIER-PATH id-path)
+                            (cadr (car (cadr id-path))))
+                           (otherwise :not-implemented))))))
+     param))
 
-(defun transform-uplift-struct-def (param)
-  (maptree-transform
-   #'(lambda (par)
-       (match par
-         ((property :STRUCT-DEF struct-def)
-          (match struct-def
-            ((and (property :STRUCT struct-name)
-                  (property :CONTENTS contents))
-             `(:struct-def ,struct-name :contents ,contents))))))
-   param))
+  (defun transform-uplift-members (param)
+    (maptree-transform
+     #'(lambda (par)
+         (match par
+                ((property :MEMBER members)  `(:struct-members ,members))))
+     param))
 
-(defun transform-uplift-event-def (param)
-  (maptree-transform
-   #'(lambda (par)
-       (match par
-         ((property :EVENT-DEF event-def)
-          (match event-def
-            ((and (property :EVENT event-name)
-                  (property :PARAMS params))
-             `(:event-def ,event-name :params ,params))))))
-   param))
+  (defun transform-uplift-struct-def (param)
+    (maptree-transform
+     #'(lambda (par)
+         (match par
+                ((property :STRUCT-DEF struct-def)
+                 (match struct-def
+                        ((and (property :STRUCT struct-name)
+                              (property :CONTENTS contents))
+                         `(:struct-def ,struct-name :contents ,contents))))))
+     param))
+#+END_SRC
+
+* Transform event
+
+#+BEGIN_SRC lisp :noweb-ref transform_event
+  (defun transform-uplift-event-def (param)
+    (maptree-transform
+     #'(lambda (par)
+         (match par
+                ((property :EVENT-DEF event-def)
+                 (match event-def
+                        ((and (property :EVENT event-name)
+                              (property :PARAMS params))
+                         `(:event-def ,event-name :params ,params))))))
+     param))
+#+END_SRC
+* Indentation
+
+#+BEGIN_SRC lisp :noweb-ref indentation
+  (defparameter *indent* 1)
+
+  (defun ind ()
+    (make-string (* 2 *indent*) :initial-element #\Space))
+
+  (defmacro with-indent (&body body)
+    `(progn
+       (incf *indent*)
+       (prog1 ,@body
+         (decf *indent*))))
+
+  ;; (macroexpand-1
+  ;;  '(with-indent (mapcar #'member-struct-name (getf par :struct-members))))
+#+END_SRC
+
+* Gen structs
+
+#+BEGIN_SRC lisp :noweb-ref gen_structs
+  (defun member-struct-name (par)
+    (format nil "~A~A: ~A"
+            (ind)
+            (getf par :member-struct-name)
+            (getf par :member-struct-type)))
+
+  ;; (member-struct-name
+  ;;  '(:MEMBER-STRUCT-NAME "EventId" :MEMBER-STRUCT-TYPE "String"))
+
+  (defun struct-members (par)
+    (format nil "~{~a~^,~%~}"
+            (with-indent
+              (mapcar #'member-struct-name (getf par :struct-members)))))
+
+  ;; (struct-members
+  ;;  '(:STRUCT-MEMBERS
+  ;;    ((:MEMBER-STRUCT-NAME "First" :MEMBER-STRUCT-TYPE "String")
+  ;;     (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String"))))
+
+  (defun %struct-def (par)
+    (format nil "~Astruct ~A {~%~A~%~A}~%"
+            (ind)
+            (getf par :struct-def)
+            (with-indent
+              (struct-members (getf par :contents)))
+            (ind)))
+
+  ;; (%struct-def
+  ;;  `(:STRUCT-DEF "ContractId"
+  ;;    :CONTENTS (:STRUCT-MEMBERS
+  ;;               ((:MEMBER-STRUCT-NAME "First" :MEMBER-STRUCT-TYPE "String")
+  ;;                (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String")))))
+
+#+END_SRC
+
+* Gen events
+
+#+BEGIN_SRC lisp :noweb-ref gen_events
+  (defun event-param (par)
+    (format nil "~A: ~A"
+            (getf par :id)
+            (caadr (getf par :type-name))))
+
+  ;; (event-param
+  ;;  `(:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from"))
+
+  (defun event-params (par)
+    (format nil "~{~a~^, ~}"
+            (with-indent
+                (mapcar #'event-param (getf par :event-param)))))
+
+  ;; (event-params
+  ;;  `(:EVENT-PARAM
+  ;;    ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
+  ;;     (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID "_value"))))
+
+  (defun %event-def (par)
+    (format nil "~Afn ~A(~A) {~%~A}" (ind) (getf par :event-def)
+            (with-indent
+                (event-params (getf par :params)))
+            (ind)))
+
+  ;; (%event-def
+  ;;  `(:EVENT-DEF "SomeEvent" :PARAMS
+  ;;               (:EVENT-PARAM
+  ;;                ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
+  ;;                 (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID
+  ;;                             "_value")))))
+
+#+END_SRC
+
+* Run
+
+#+BEGIN_SRC lisp :noweb-ref run
+
+  ;; (defun %ctract-body-elt (par)
+  ;;   (format nil "~A// contract body elt comment ~%~{~A~}~%"
+  ;;           (ind)
+  ;;           (with-indent
+  ;;             (mapcar #'outer (cadr par)))))
 
 
-(defparameter *new*
-  )
+  (defun outer (param)
+    (maptree-transform
+     #'(lambda (par)
+         (if (not (and (listp par) (keywordp (car par))))
+             nil
+             ;; else
+             (let ((fn (intern (concatenate 'string "%" (symbol-name (car par))))))
+               (if (not (fboundp fn))
+                   (prog1 nil
+                     (format t "ERR[:unimplemented gen:] ~A~%" fn))
+                   ;; else
+                   (funcall fn par)))))
+     param))
 
 
-(defparameter *indent* 1)
+  (print
+   (outer (->> (read-from-string (read-file-into-string "mep.sexp"))
+               (transform-struct-member)
+               (transform-uplift-members)
+               (transform-uplift-struct-def)
+               (transform-uplift-event-def)
+               )))
+#+END_SRC
 
-(defun ind ()
-  (make-string (* 2 *indent*) :initial-element #\Space))
+* Copyright
 
-(defmacro with-indent (&body body)
-  `(progn
-     (incf *indent*)
-     (prog1 ,@body
-       (decf *indent*))))
+#+NAME: copyright
+#+BEGIN_SRC lisp
+  Copyright © 2021-2022 Glukhov Mikhail. All rights reserved. Licensed
+  under the GNU AGPLv3
+#+END_SRC
 
-;; (macroexpand-1
-;;  '(with-indent (mapcar #'member-struct-name (getf par :struct-members))))
+* Executable
 
-(defun member-struct-name (par)
-  (format nil "~A~A: ~A"
-          (ind)
-          (getf par :member-struct-name)
-          (getf par :member-struct-type)))
+#+BEGIN_SRC lisp :tangle exec-transpiler.lisp
+  (load "result.lisp")
 
-;; (member-struct-name
-;;  '(:MEMBER-STRUCT-NAME "EventId" :MEMBER-STRUCT-TYPE "String"))
+  (ql:quickload "unix-opts")
 
-(defun struct-members (par)
-  (format nil "~{~a~^,~%~}"
-          (with-indent
-            (mapcar #'member-struct-name (getf par :struct-members)))))
+  (load "mw-diff-sexp/packages.lisp")
+  (load "mw-diff-sexp/diff-sexp.lisp")
 
-;; (struct-members
-;;  '(:STRUCT-MEMBERS
-;;    ((:MEMBER-STRUCT-NAME "First" :MEMBER-STRUCT-TYPE "String")
-;;     (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String"))))
+  (use-package :mw-diff-sexp)
 
+  (defun parse-filename (str)
+    str)
 
-;; (defun %ctract-body-elt (par)
-;;   (format nil "~A// contract body elt comment ~%~{~A~}~%"
-;;           (ind)
-;;           (with-indent
-;;             (mapcar #'outer (cadr par)))))
+  (opts:define-opts
+    (:name :usage
+     :description "Usage solidity checker."
+     :short #\u
+     :long "usage")
+    (:name :parse
+     :description "Parse solidity file"
+     :short #\p
+     :long "parse"
+     ;; :required t
+     :arg-parser #'parse-filename
+     :meta-var "<filename>")
+    (:name :test
+     :description "Parse all files in test directory"
+     :short #\t
+     :long "test"
+     ;; :required t
+     :arg-parser #'parse-filename
+     :meta-var "<directory>")
+    (:name :output
+     :description "Output file"
+     :short #\o
+     :long "output"
+     ;; :required t
+     :arg-parser #'parse-filename
+     :meta-var "<filename>")
+    (:name :compare
+     :description "Compare contract"
+     :short #\c
+     :long "compare"
+     ;; :required t
+     :arg-parser #'parse-filename
+     :meta-var "<filename>")
+    ;; -------------------------------------
+    (:name :check
+     :description "Contract for checking"
+     :short #\c
+     :long "check"
+     ;; :required t
+     :arg-parser #'parse-filename
+     :meta-var "<filename>")
+    )
 
-(defun %struct-def (par)
-  (format nil "~Astruct ~A {~%~A~%~A}~%"
-          (ind)
-          (getf par :struct-def)
-          (with-indent
-            (struct-members (getf par :contents)))
-          (ind)))
+  (defun unknown-option (condition)
+    (format t "WARNING: ~s option is unknown!~%~%" (opts:option condition))
+    (invoke-restart 'opts:skip-option))
 
-;; (%struct-def
-;;  `(:STRUCT-DEF "ContractId"
-;;    :CONTENTS (:STRUCT-MEMBERS
-;;               ((:MEMBER-STRUCT-NAME "First" :MEMBER-STRUCT-TYPE "String")
-;;                (:MEMBER-STRUCT-NAME "Second" :MEMBER-STRUCT-TYPE "String")))))
+  (defmacro when-option ((options opt) &body body)
+    `(let ((it (getf ,options ,opt)))
+       (when it
+         ,@body)))
 
-(defun outer (param)
-  (maptree-transform
-   #'(lambda (par)
-       (if (not (and (listp par) (keywordp (car par))))
-           nil
-           ;; else
-           (let ((fn (intern (concatenate 'string "%" (symbol-name (car par))))))
-             (if (not (fboundp fn))
-                 (prog1 nil
-                   (format t "ERR[:unimplemented gen:] ~A~%" fn))
-                 ;; else
-                 (funcall fn par)))))
-   param))
+  (defun main ()
+    (multiple-value-bind (options free-args)
+        (handler-case
+            (handler-bind ((opts:unknown-option #'unknown-option))
+              (opts:get-opts))
+          (opts:missing-arg (condition)
+            (format t "FATAL: option ~s needs an argument!~%~%"
+                    (opts:option condition)))
+          (opts:arg-parser-failed (condition)
+            (format t "FATAL: cannot parse ~s as argument of ~s~%~%"
+                    (opts:raw-arg condition)
+                    (opts:option condition)))
+          (opts:missing-required-option (con)
+            (format t "FATAL: ~a~%%" con)
+            (opts:exit 1)))
+      (if (null options)
+          (setf options '(:usage t)))
+      (let ((parsed)
+            (overbox))
+        (when-option (options :usage)
+          (opts:describe
+           :prefix "Solidity parser. Usage:"
+           :suffix "To find differences between the base contract and the checked one, use: solparser -p base.sol -c checked.sol"
+           :usage-of "./solparser"
+           ;; :args "[keywords]"
+           ))
+        (when-option (options :parse)
+          (format t "Solidity parser. Parse file: ~A ~%" it)
+          (setf parsed (test-contract-file it)))
+        (when-option (options :test)
+          (format t "Solidity parser. Test in directory: ~A ~%" it)
+          (setf parsed (test-all-contracts it)))
+        (when-option (options :output)
+          (format t "Solidity parser. Output: ~A ~%" it)
+          (setf overbox it))
+        (when-option (options :compare)
+          (format t "Solidity parser. Compare with: ~A ~%" it)
+          (setf parsed
+                (diff-sexp parsed (test-contract-file it))))
+        ;; output
+        (if overbox
+            (alexandria:write-string-into-file (bprint parsed) overbox :if-exists :supersede)
+            ;; else
+            (format t "~%~A~%" (bprint parsed)))
+        )))
 
-(defun event-param (par)
-  (format nil "~A: ~A"
-          (getf par :id)
-          (caadr (getf par :type-name))))
-
-;; (event-param
-;;  `(:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from"))
-
-(defun event-params (par)
-  (format nil "~{~a~^, ~}"
-          (with-indent
-            (mapcar #'event-param (getf par :event-param)))))
-
-;; (event-params
-;;  `(:EVENT-PARAM
-;;    ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
-;;     (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID "_value"))))
-
-(defun %event-def (par)
-  (format nil "~Afn ~A(~A) {~%~A}" (ind) (getf par :event-def)
-          (with-indent
-            (event-params (getf par :params)))
-          (ind)))
-
-(%event-def
- `(:EVENT-DEF "SomeEvent" :PARAMS
-              (:EVENT-PARAM
-               ((:TYPE-NAME (:ELT-TYPE-NAME (:ADDRESS AD)) :ID "_from")
-                (:TYPE-NAME (:ELT-TYPE-NAME (:UNSIGNED-INTEGER-TYPE UINT)) :ID
-                            "_value")))))
-
-(print
- (outer (->> (read-from-string (read-file-into-string "mep.sexp"))
-             (transform-struct-member)
-             (transform-uplift-members)
-             (transform-uplift-struct-def)
-             (transform-uplift-event-def)
-             )))
+  (export 'main)
+  (sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)
 #+END_SRC
