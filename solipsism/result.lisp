@@ -1,5 +1,5 @@
 ;; [[file:doc.org::*Frame][Frame:1]]
-;; ;; [[[[file:~/src/solipsism/doc.org::copyright][copyright]]][copyright]]
+;; ;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::copyright][copyright]]][copyright]]
 ;; Copyright © 2021-2022 Glukhov Mikhail. All rights reserved. Licensed
 ;; under the GNU AGPLv3
 ;; ;; copyright ends here
@@ -17,7 +17,7 @@
       (cons (car par) (lddr (cadr par)))
       par))
 
-;; [[[[file:~/src/solipsism/doc.org::dbgout][dbgout]]][dbgout]]
+;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::dbgout][dbgout]]][dbgout]]
 (defparameter *dbg-enable* t)
 (defparameter *dbg-indent* 1)
 
@@ -29,7 +29,7 @@
   `(dbgout (format nil ,frmt ,@params)))
 ;; dbgout ends here
 
-;; [[[[file:~/src/solipsism/doc.org::*Frame][Frame]]][]]
+;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::*Frame][Frame]]][]]
 (defun get-filtered-file-content (file filter)
   (let ((output (make-string-output-stream)))
     (with-open-file (input file)
@@ -87,7 +87,7 @@
 ;; (get-filtered-comments-file-contents #P"/home/rigidus/src/solipsism/test_contract.sol")
 ;; ends here
 
-;; [[[[file:~/src/solipsism/doc.org::lexer][lexer]]][lexer]]
+;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::lexer][lexer]]][lexer]]
 (defmacro def-lex (var-name &body body)
   (let ((res))
     (dolist (item body)
@@ -434,7 +434,7 @@
   )
 ;; lexer ends here
 
-;; [[[[file:~/src/solipsism/doc.org::parser][parser]]][parser]]
+;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::parser][parser]]][parser]]
 (define-parser *sol-parser*
   (:start-symbol %src-unit)
   (:terminals (
@@ -3001,7 +3001,7 @@
 ;;     (print result)
 ;;     ))
 
-;; [[[[file:~/src/solipsism/doc.org::tests][tests]]][tests]]
+;; [[[[file:~/src/subprotocol/subprotocol-parser-lib/solipsism/doc.org::tests][tests]]][tests]]
 (defun map-subdir (test-dir test-fn)
   (let ((test-subdirs))
     (uiop:collect-sub*directories

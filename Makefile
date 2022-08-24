@@ -7,4 +7,7 @@ build:
 	echo ":builded"
 
 demo:
-	./solipsism/solcheck -p ./mep.sol
+	./solparser -p ./mep.sol
+
+sexp:
+	./solparser -p ./mep.sol -o mep.sexp

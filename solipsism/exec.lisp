@@ -83,22 +83,22 @@
           (overbox))
       (when-option (options :usage)
         (opts:describe
-         :prefix "Solidity checker. Usage:"
-         :suffix "To find differences between the base contract and the checked one, use: solcheck -p base.sol -c checked.sol"
-         :usage-of "./solcheck"
+         :prefix "Solidity parser. Usage:"
+         :suffix "To find differences between the base contract and the checked one, use: solparser -p base.sol -c checked.sol"
+         :usage-of "./solparser"
          ;; :args "[keywords]"
          ))
       (when-option (options :parse)
-        (format t "Solidity checker. Parse file: ~A ~%" it)
+        (format t "Solidity parser. Parse file: ~A ~%" it)
         (setf parsed (test-contract-file it)))
       (when-option (options :test)
-        (format t "Solidity checker. Test in directory: ~A ~%" it)
+        (format t "Solidity parser. Test in directory: ~A ~%" it)
         (setf parsed (test-all-contracts it)))
       (when-option (options :output)
-        (format t "Solidity checker. Output: ~A ~%" it)
+        (format t "Solidity parser. Output: ~A ~%" it)
         (setf overbox it))
       (when-option (options :compare)
-        (format t "Solidity checker. Compare with: ~A ~%" it)
+        (format t "Solidity parser. Compare with: ~A ~%" it)
         (setf parsed
               (diff-sexp parsed (test-contract-file it))))
       ;; output
@@ -109,4 +109,4 @@
       )))
 
 (export 'main)
-(sb-ext:save-lisp-and-die #P"solcheck" :toplevel #'main :executable t)
+(sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)

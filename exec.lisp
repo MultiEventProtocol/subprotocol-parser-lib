@@ -84,8 +84,8 @@
       (when-option (options :usage)
         (opts:describe
          :prefix "Solidity checker. Usage:"
-         :suffix "To find differences between the base contract and the checked one, use: solcheck -p base.sol -c checked.sol"
-         :usage-of "./solcheck"
+         :suffix "To find differences between the base contract and the checked one, use: parser -p base.sol -c checked.sol"
+         :usage-of "./solparser"
          ;; :args "[keywords]"
          ))
       (when-option (options :parse)
@@ -109,4 +109,4 @@
       )))
 
 (export 'main)
-(sb-ext:save-lisp-and-die #P"solcheck" :toplevel #'main :executable t)
+(sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)
