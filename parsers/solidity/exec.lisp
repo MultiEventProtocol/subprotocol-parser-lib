@@ -1,10 +1,26 @@
-(load "result.lisp")
+(defparameter *call-path*
+  (pathname (concatenate 'string (sb-posix:getcwd) "/")))
+
+(defparameter *true-dir*
+  (let* ((truename  (or *compile-file-truename* *load-truename*))
+         (directory (if (null truename)
+                        *call-path*
+                        (pathname (directory-namestring truename)))))
+    directory))
+
+(load (merge-pathnames (make-pathname :name "result" :type "lisp")
+                       *true-dir*))
+
+(load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
+                                      :name "packages" :type "lisp")
+                       *true-dir*))
+
+(load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
+                                      :name "diff-sexp" :type "lisp")
+                       *true-dir*))
+
 
 (ql:quickload "unix-opts")
-
-(load "mw-diff-sexp/packages.lisp")
-(load "mw-diff-sexp/diff-sexp.lisp")
-
 (use-package :mw-diff-sexp)
 
 (defun parse-filename (str)
@@ -12,7 +28,7 @@
 
 (opts:define-opts
   (:name :usage
-   :description "Usage solidity checker."
+   :description "Usage solidity parser."
    :short #\u
    :long "usage")
   (:name :parse
@@ -36,21 +52,21 @@
    ;; :required t
    :arg-parser #'parse-filename
    :meta-var "<filename>")
-  (:name :compare
-   :description "Compare contract"
-   :short #\c
-   :long "compare"
-   ;; :required t
-   :arg-parser #'parse-filename
-   :meta-var "<filename>")
+  ;; (:name :compare
+  ;;  :description "Compare contract"
+  ;;  :short #\c
+  ;;  :long "compare"
+  ;;  ;; :required t
+  ;;  :arg-parser #'parse-filename
+  ;;  :meta-var "<filename>")
   ;; -------------------------------------
-  (:name :check
-   :description "Contract for checking"
-   :short #\c
-   :long "check"
-   ;; :required t
-   :arg-parser #'parse-filename
-   :meta-var "<filename>")
+  ;; (:name :check
+  ;;  :description "Contract for checking"
+  ;;  :short #\c
+  ;;  :long "check"
+  ;;  ;; :required t
+  ;;  :arg-parser #'parse-filename
+  ;;  :meta-var "<filename>")
   )
 
 (defun unknown-option (condition)
@@ -97,16 +113,20 @@
       (when-option (options :output)
         (format t "Solidity parser. Output: ~A ~%" it)
         (setf overbox it))
-      (when-option (options :compare)
-        (format t "Solidity parser. Compare with: ~A ~%" it)
-        (setf parsed
-              (diff-sexp parsed (test-contract-file it))))
+      ;; (when-option (options :compare)
+      ;;   (format t "Solidity parser. Compare with: ~A ~%" it)
+      ;;   (setf parsed
+      ;;         (diff-sexp parsed (test-contract-file it))))
       ;; output
       (if overbox
-          (alexandria:write-string-into-file (bprint parsed) overbox :if-exists :supersede)
+          (alexandria:write-string-into-file (bprint parsed) overbox
+                                             :if-exists :supersede)
           ;; else
           (format t "~%~A~%" (bprint parsed)))
       )))
 
 (export 'main)
-(sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)
+(sb-ext:save-lisp-and-die
+ (merge-pathnames (make-pathname :name "solparser")
+                  *call-path*)
+ :toplevel #'main :executable t)

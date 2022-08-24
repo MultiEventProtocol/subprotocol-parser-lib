@@ -110,8 +110,8 @@ solidity-конструкциями и ожидаю получить дерев�
 
   (ql:quickload "unix-opts")
 
-  (load "mw-diff-sexp/packages.lisp")
-  (load "mw-diff-sexp/diff-sexp.lisp")
+  (load "./mw-diff-sexp/packages.lisp")
+  (load "./mw-diff-sexp/diff-sexp.lisp")
 
   (use-package :mw-diff-sexp)
 
