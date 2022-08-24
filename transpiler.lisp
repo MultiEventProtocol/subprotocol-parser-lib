@@ -8,10 +8,14 @@
              (pprint ,var)) 1))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (ql:quickload '(:alexandria :anaphora :optima :fare-quasiquote-extras
+  (ql:quickload '(:alexandria :anaphora :optima
+                  :fare-quasiquote
+                  :fare-quasiquote-extras
                   :fare-quasiquote-optima)))
 
-(use-package '(:alexandria :anaphora :optima))
+(use-package '(:anaphora :optima :fare-quasiquote))
+
+(named-readtables:in-readtable :fare-quasiquote)
 
 ;; [[[[file:~/src/subprotocol-parser-lib/transpiler.org::*Frame][Frame]]][]]
 (defun maptree-transform (predicate-transformer tree)
@@ -222,15 +226,109 @@ last item in second form, etc."
                  (funcall fn par)))))
    param))
 
+(defun transform-uplift-params (param)
+  (maptree-transform
+   #'(lambda (par)
+       (match par
+         ((list :PARAM-LIST (list :PAR param-list))  `(:param-list ,param-list))))
+   param))
+
+;; (transform-uplift-params
+;;  '(:PARAM-LIST
+;;    (:PAR
+;;     ((:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent"))))
+;;       :NAME "e")))))
+
+
 (defun transpile-file (param)
   (print
-   (outer (->> (read-from-string (read-file-into-string param))
+   (outer (->> (read-from-string (alexandria:read-file-into-string param))
                (transform-struct-member)
                (transform-uplift-members)
                (transform-uplift-struct-def)
                (transform-uplift-event-def)
+               (transform-uplift-params)
                ))))
 
 ;; (transpile-file "mep.sexp")
+
+(defun func-param (par)
+  (match par
+    ((list :PAR-TYPE
+           (list :IDENTIFIER-PATH
+                 (list :IDENT (list (list :ID param-type))))
+           :NAME param-name)
+     (format nil "~A: ~A"  param-name param-type))
+    (otherwise (format t "ERR:[otherwise-unimplemented]:-func-param(\"~A\")~%"
+                       (cadr par)))))
+
+;; (func-param
+;;  `(:PAR-TYPE2 (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent")))) :NAME "e"))
+
+(defun func-params (par)
+  (match par
+    ((list :PARAM-LIST param-list)
+     (format nil "~{~a~^, ~}"
+             (with-indent
+               (mapcar #'func-param param-list))))))
+
+;; (func-params
+;;  '(:PARAM-LIST
+;;    ((:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent"))))
+;;      :NAME "e1")
+;;     (:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent"))))
+;;      :NAME "e2"))))
+
+(defun %func-def (par)
+  (match par
+    ((list :FUNC-DEF fn)
+     (let* ((fname  (getf fn :fun))
+            (parlist (getf fn :parlist))
+            (fmeta (getf fn :fmeta))
+            (retlist (getf fn :retlist))
+            (blk (getf fn :block)))
+       (format nil "~Afn ~A(~A)~A {~%~A~A}~%"
+               (ind)
+               fname
+               (func-params parlist)
+               (let ((result-retlist "!"))
+                 (when retlist
+                   (match retlist
+                     ((list :RETLIST (list :PAR returns))
+                      (match (car returns)
+                        ((list :PAR-TYPE
+                               (list :IDENTIFIER-PATH
+                                     (list :IDENT (list (list :ID param-type)))))
+                         (setf result-retlist (format nil "-> ~A"  param-type)))
+                        (otherwise (format t "ERR:[unimplemented in func-def]:~%"
+                                           (car returns)))))))
+                 result-retlist)
+               (with-indent
+                 (format nil "~A~%" (bprint blk)))
+               (ind))))))
+
+;; (print
+;; (%func-def
+;; '(:FUNC-DEF
+;;   (:FUN "SomeEventHandler"
+;;    :PARLIST (:PARAM-LIST
+;;              ((:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent"))))
+;;                :NAME "e")
+;;               (:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeContractEvent"))))
+;;                :NAME "e2")))
+;;    :FMETA (:VISIBILITY PUBLIC :STATE-MUTABILITY (:STATE-MUTABILITY VIEW))
+;;    :RETLIST
+;;         (:RETLIST
+;;          (:PAR
+;;           ((:PAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeMEPEvent"))))))))
+;;    :BLOCK
+;;         (:STMNT
+;;          (:VAR-DECL-STMNT
+;;           ((:VAR-DECL
+;;             (:VAR-TYPE (:IDENTIFIER-PATH (:IDENT ((:ID "SomeMEPEvent")))) :NAME
+;;                        "mep_e")
+;;             :INIT (:EXPR-TN (:IDENTIFIER-PATH (:IDENT ((:ID "e"))))))
+;;            (:RETURN
+;;              (:EXPR-TN (:IDENTIFIER-PATH (:IDENT ((:ID "e")))))))))))))
 ;; ends here
 ;; Frame:1 ends here
