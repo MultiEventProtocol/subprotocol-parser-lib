@@ -2,6 +2,9 @@ SHELL = /bin/sh
 
 all: demo
 
+tangle:
+	make tangle -f ./solipsism/Makefile
+
 build:
 	sbcl --load "./exec.lisp"
 

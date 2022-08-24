@@ -1,9 +1,20 @@
 # subprotocol-parser-lib
 library and demo of parsing MEP sub-protocol manifest
 
-The MEP protocol manifest is a set of declarations that are needed to call the protocol API. For the convenience of web3 developers, it is written in Solidity. This library parses solidity code into an abstract syntax tree, which has a visual representation in the form of S-expressions. The resulting S-expressions can be easily parsed and converted into code that will do the main work. This code can be written in TypeScript, Rust, or Go, with S-expressions being an intermediate representation for all of these languages.
+The MEP protocol manifest is a set of declarations that are needed to call the protocol API. For the convenience of web3 developers, it is written in Solidity.
 
-Example:
+This library parses solidity code into an abstract syntax tree, which has a visual representation in the form of S-expressions. The resulting S-expressions can be easily transformed into code (in TypeScript, Rust, or Go) or compiled into bytecode for virtual machine, which we will write.
+
+Below we show all these steps:
+- Parsing a simplified example of solidity code
+- obtaining an S-expression tree
+- transforming the tree and generating the resulting Rust code
+
+We plan (as part of this project) in the near future to develop a virtual machine as a target backend for compiling from S-expressions to bytecode.
+
+## how it can parse solidity into s-expressions
+
+Example of solidity code (mep.sol):
 
 ```solidity
 pragma solidity ^0.8.0;
@@ -31,7 +42,15 @@ contract MEP_solidity_example_test {
 }
 ```
 
-Result:
+To turn solidity code into an s-expression tree:
+```bash
+./solparser -p ./mep.sol -o mep.sexp
+```
+
+"-p" means "parse"
+"-o" means "output"
+
+Result (file mep.sexp):
 ```lisp
 (:SRC
  ((:PRAGMA-DEF (:PRAGMA "solidity ^0.8.0;"))
@@ -78,10 +97,48 @@ Result:
             (:EXPR-TN (:IDENTIFIER-PATH (:IDENT ((:ID "e")))))))))))))))))
 ```
 
-## install and prepare to work
+## how we can turn the lisp into the rust library
+
+```bash
+./transpiler -t mep.sexp -o mep.rs
+```
+
+"-t" means "transpile"
+"-o" means "output"
+
+Result (file mep.rs) - work in progress:
+```rust
+struct ContractId {
+    network: String,
+    contract_addr: String,
+}
+
+struct ContractEvent {
+    contract_id: ContractId,
+    event_id: String,
+}
+
+// event
+fn some_event(_from: u32, _value: u32) {
+}
+
+fn some_event_handler(e: SomeContractEvent) -> SomeMEPEVent {
+    let mep_e = e;
+    return e;
+}
+
+fn main() {
+    println!("Hi!");
+}
+
+```
+
+
+## build project
 ```sh
 git clone git@github.com:MultiEventProtocol/subprotocol-parser-lib.git
 cd subprotocol-parser-lib/
+git branch literate
 sudo apt install emacs
 make tangle
 make build
