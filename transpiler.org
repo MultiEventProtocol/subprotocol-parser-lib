@@ -2,7 +2,7 @@
 
 * Frame
 
-#+BEGIN_SRC lisp :tangle transpiler2.lisp :noweb tangle :comments noweb
+#+BEGIN_SRC lisp :tangle transpiler.lisp :noweb tangle :comments noweb
   ;; <<copyright>>
   (defmacro bprint (var)
     `(subseq (with-output-to-string (*standard-output*)
@@ -236,14 +236,11 @@ last item in second form, etc."
 * Run
 
 #+BEGIN_SRC lisp :noweb-ref run
-
   ;; (defun %ctract-body-elt (par)
   ;;   (format nil "~A// contract body elt comment ~%~{~A~}~%"
   ;;           (ind)
   ;;           (with-indent
   ;;             (mapcar #'outer (cadr par)))))
-
-
   (defun outer (param)
     (maptree-transform
      #'(lambda (par)
@@ -258,14 +255,16 @@ last item in second form, etc."
                    (funcall fn par)))))
      param))
 
+  (defun transpile-file (param)
+    (print
+     (outer (->> (read-from-string (read-file-into-string param))
+                 (transform-struct-member)
+                 (transform-uplift-members)
+                 (transform-uplift-struct-def)
+                 (transform-uplift-event-def)
+                 ))))
 
-  (print
-   (outer (->> (read-from-string (read-file-into-string "mep.sexp"))
-               (transform-struct-member)
-               (transform-uplift-members)
-               (transform-uplift-struct-def)
-               (transform-uplift-event-def)
-               )))
+  ;; (transpile-file "mep.sexp")
 #+END_SRC
 
 * Copyright
@@ -279,58 +278,31 @@ last item in second form, etc."
 * Executable
 
 #+BEGIN_SRC lisp :tangle exec-transpiler.lisp
-  (load "result.lisp")
+  (load "transpiler.lisp")
 
   (ql:quickload "unix-opts")
 
-  (load "mw-diff-sexp/packages.lisp")
-  (load "mw-diff-sexp/diff-sexp.lisp")
-
-  (use-package :mw-diff-sexp)
-
-  (defun parse-filename (str)
+  (defun transpile-filename (str)
     str)
 
   (opts:define-opts
     (:name :usage
-     :description "Usage solidity checker."
+     :description "Usage transpiler."
      :short #\u
      :long "usage")
-    (:name :parse
-     :description "Parse solidity file"
-     :short #\p
-     :long "parse"
-     ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<filename>")
-    (:name :test
-     :description "Parse all files in test directory"
+    (:name :transpile
+     :description "Transpile file"
      :short #\t
-     :long "test"
+     :long "transpile"
      ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<directory>")
+     :arg-parser #'transpile-filename
+     :meta-var "<filename>")
     (:name :output
      :description "Output file"
      :short #\o
      :long "output"
      ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<filename>")
-    (:name :compare
-     :description "Compare contract"
-     :short #\c
-     :long "compare"
-     ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<filename>")
-    ;; -------------------------------------
-    (:name :check
-     :description "Contract for checking"
-     :short #\c
-     :long "check"
-     ;; :required t
-     :arg-parser #'parse-filename
+     :arg-parser #'transpile-filename
      :meta-var "<filename>")
     )
 
@@ -360,35 +332,30 @@ last item in second form, etc."
             (opts:exit 1)))
       (if (null options)
           (setf options '(:usage t)))
-      (let ((parsed)
+      (let ((transpiled)
             (overbox))
         (when-option (options :usage)
           (opts:describe
-           :prefix "Solidity parser. Usage:"
-           :suffix "To find differences between the base contract and the checked one, use: solparser -p base.sol -c checked.sol"
-           :usage-of "./solparser"
+           :prefix "Transpiler. Usage:"
+           :suffix "use: transpiler -p example.sexp"
+           :usage-of "./traspiler"
            ;; :args "[keywords]"
            ))
-        (when-option (options :parse)
-          (format t "Solidity parser. Parse file: ~A ~%" it)
-          (setf parsed (test-contract-file it)))
-        (when-option (options :test)
-          (format t "Solidity parser. Test in directory: ~A ~%" it)
-          (setf parsed (test-all-contracts it)))
+        (when-option (options :transpile)
+          (format t "Transpiler. Transpile file: ~A ~%" it)
+          (setf transpiled (transpile-file it)))
         (when-option (options :output)
-          (format t "Solidity parser. Output: ~A ~%" it)
+          (format t "Transpiler. Output: ~A ~%" it)
           (setf overbox it))
-        (when-option (options :compare)
-          (format t "Solidity parser. Compare with: ~A ~%" it)
-          (setf parsed
-                (diff-sexp parsed (test-contract-file it))))
         ;; output
         (if overbox
-            (alexandria:write-string-into-file (bprint parsed) overbox :if-exists :supersede)
+            (alexandria:write-string-into-file (bprint transpiled)
+                                               overbox
+                                               :if-exists :supersede)
             ;; else
-            (format t "~%~A~%" (bprint parsed)))
+            (format t "~%~A~%" (bprint transpiled)))
         )))
 
   (export 'main)
-  (sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)
+  (sb-ext:save-lisp-and-die #P"transpiler" :toplevel #'main :executable t)
 #+END_SRC
