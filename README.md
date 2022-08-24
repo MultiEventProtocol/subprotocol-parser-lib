@@ -10,7 +10,7 @@ Below we show all these steps:
 - obtaining an S-expression tree
 - transforming the tree and generating the resulting Rust code
 
-We plan (as part of this project) in the near future to develop a virtual machine as a target backend for compiling from S-expressions to bytecode.
+We plan (as part of this project) in the near future to develop a virtual machine as a target backend for compiling from S-expressions to bytecode. See section "Virtual environment for execution".
 
 ## how it can parse solidity into s-expressions
 
@@ -47,8 +47,7 @@ To turn solidity code into an s-expression tree:
 ./solparser -p ./mep.sol -o mep.sexp
 ```
 
-"-p" means "parse"
-"-o" means "output"
+"-p" means "parse", "-o" means "output"
 
 Result (file mep.sexp):
 ```lisp
@@ -103,8 +102,7 @@ Result (file mep.sexp):
 ./transpiler -t mep.sexp -o mep.rs
 ```
 
-"-t" means "transpile"
-"-o" means "output"
+"-t" means "transpile", "-o" means "output"
 
 Result (file mep.rs) - work in progress:
 ```rust
@@ -133,6 +131,13 @@ fn main() {
 
 ```
 
+## virtual environment for execution
+
+Smart contracts can be vulnerable to hacker attacks, so running them inside general-purpose programming languages is dangerous. In the case of rast, the module can be compiled in WASM and executed in a sandbox.
+
+But a more secure method would be to execute the bytecode in a specially created virtual machine, as is done in Etherium.
+
+We plan to develop a set of opcodes and a reference implementation of such a virtual machine during this year to provide a secure and reliable environment for execution.
 
 ## build project
 ```sh
