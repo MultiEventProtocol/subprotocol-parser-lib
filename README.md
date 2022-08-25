@@ -145,7 +145,5 @@ git clone git@github.com:MultiEventProtocol/subprotocol-parser-lib.git
 cd subprotocol-parser-lib/
 git branch literate
 sudo apt install emacs
-make tangle
-make build
-make demo
+make all
 ```

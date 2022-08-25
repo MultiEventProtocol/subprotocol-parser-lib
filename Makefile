@@ -3,6 +3,9 @@ SHELL = /bin/sh
 all: sexp transpile
 
 # SolParser
+solparser: tangle-solparser build-solparser
+
+
 tangle-solparser:
 	make tangle -f ./parsers/solidity/Makefile
 
@@ -11,13 +14,14 @@ build-solparser:
 
 
 # RustGen
+transpiler: build-rustgen
+
+
 tangle-rustgen:
 	make tangle -f ./generators/rust/Makefile
 
 build-rustgen:
-	sbcl --load "./generators/rust/exec-transpiler.lisp"
-
-
+	sbcl --load "./exec-transpiler.lisp"
 
 sexp: mep.sol solparser
 	./solparser -p ./mep.sol -o mep.sexp
