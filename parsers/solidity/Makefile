@@ -7,3 +7,6 @@ tangle:
 		--eval "(progn (org-babel-tangle) (kill-emacs))"
 build:
 	sbcl --load "./exec.lisp"
+
+clean:
+	rm solparser

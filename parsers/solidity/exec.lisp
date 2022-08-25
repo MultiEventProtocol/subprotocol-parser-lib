@@ -1,3 +1,5 @@
+;; Copyright © 2021-2022 Glukhov Mikhail. All rights reserved. Licensed
+;; under the GNU AGPLv3
 (defparameter *call-path*
   (pathname (concatenate 'string (sb-posix:getcwd) "/")))
 
@@ -8,8 +10,16 @@
                         (pathname (directory-namestring truename)))))
     directory))
 
-(load (merge-pathnames (make-pathname :name "result" :type "lisp")
-                       *true-dir*))
+(if (probe-file (merge-pathnames
+                 (make-pathname  :name "solipsism" :type "asd")
+                 *true-dir*))
+    (pushnew *true-dir* asdf:*central-registry* :test #'equal)
+    ;; else (IF PATH DIFFERS - CONFIGURE PATH HERE!)
+    (pushnew #P"~/src/subprotocol-parser-lib/parsers/solidity/"
+             asdf:*central-registry* :test #'equal))
+
+
+(ql:quickload :solipsism)
 
 (load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
                                       :name "packages" :type "lisp")
@@ -100,7 +110,7 @@
       (when-option (options :usage)
         (opts:describe
          :prefix "Solidity parser. Usage:"
-         :suffix "To find differences between the base contract and the checked one, use: solparser -p base.sol -c checked.sol"
+         :suffix ""
          :usage-of "./solparser"
          ;; :args "[keywords]"
          ))

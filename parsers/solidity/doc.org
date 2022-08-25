@@ -2,62 +2,16 @@
 
 * Intro
 
-Я делаю статический анализатор для Solidity - это язык
-смарт-контрактов в Etherium. Цель в том чтобы искать уязвимости в
-криво написанных контрактах.
-
-Для удобства поиска по этой спецификации я использую систему
-наименования, которая опирается на документацию по грамматике
-Solidity. Каждое грамматическое правило, найденное в документации,
-например ~constructor-definition~ описывается в своем разделе, но
-чтобы не путать его при поиске он называется в UpperCamelCase, для
-этого примера: ~СonstructorDefinition~.
-
-Таким образом я сокращаю нетерминалы (например ~%ctract-def~ вместо
-~%contract-definition~) но при этом терминалы не сокращаются (например
-~%contract~). Это сделано чтобы можно было отдельно использовать поиск
-по файлу не путаясь в сходно называемых, но по смыслу различных
-вхождениях.
-
-Сокращение необходимо, т.к. в сложных правилах я стремлюсь к
-размещению группы похожих правил на одном экране.
-
-Само название правила и терминалов внутри кода начинается с ~%~.
-
-Если правило является подчиненным, оно определяется в подразделе. Это
-позволяет группировать правила с соответствующими им тестами.
+Solidity parser based of documentatuin of solidity grammar from official site.
 
 * Frame
 
-Я буду делать этот проект как композицию компонентов, главными из которых
-являются лексер и парсер.
+Structurally, it is a composition of components, the main ones being the lexer and the parser.
 
-В качестве тестирования я буду подавать на вход файл с валидными
-solidity-конструкциями и ожидаю получить дерево разбора на выходе.
+As a test, I will input a file with valid solidity code and expect to get a parse tree in the output.
 
-#+BEGIN_SRC lisp :tangle result.lisp :noweb tangle :comments noweb
+#+BEGIN_SRC lisp :tangle src/run.lisp :noweb yes
   ;; <<copyright>>
-  (eval-when (:compile-toplevel :load-toplevel :execute)
-    (ql:quickload '(:yacc :cl-lex :alexandria :anaphora)))
-
-  (use-package '(:cl :yacc :cl-lex :alexandria :anaphora))
-
-  (defmacro bprint (var)
-    `(subseq (with-output-to-string (*standard-output*)
-               (pprint ,var)) 1))
-
-  (defun lddr (par)
-    (if (equal 2 (length par))
-        (cons (car par) (lddr (cadr par)))
-        par))
-
-  <<dbgout>>
-
-  <<deleting_comments>>
-
-  <<lexer>>
-
-  <<parser>>
 
   ;; (progn
   ;;   (defparameter *clj* (sol-lexer (read-file-into-string "result_test.sol")))
@@ -72,15 +26,15 @@ solidity-конструкциями и ожидаю получить дерев�
 
 ** System
 
-Файл определения системы содержит в себе определение системы:
-- библиотеки, от которых зависит система
-- набор всех файлов, который должны быть загружены в образ.
+The system definition file contains the system definition:
+- the libraries on which the system depends
+- the set of all files that must be loaded into the image.
 
-Определение системы экпортируется из литературного исходника в
-корневой каталог проекта.
+The system definition is exported from the source code to the
+the root directory of the project.
 
 #+NAME: defsystem
-#+BEGIN_SRC lisp :tangle solipsism.asd :noweb tangle :exports code :padline no :comments link
+#+BEGIN_SRC lisp :tangle solipsism.asd :noweb yes :exports code
   ;; <<copyright>>
   (asdf:defsystem #:solipsism
     :version      "0.0.1"
@@ -89,13 +43,19 @@ solidity-конструкциями и ожидаю получить дерев�
     :description  "solipsism"
     :depends-on   (#:yacc #:cl-lex #:alexandria #:anaphora)
     :serial       t
-    :components   ((:file "result.lisp")))
+    :pathname     "src"
+    :components   ((:file "packages")
+                   (:file "utils")
+                   (:file "delcomments")
+                   (:file "lexer")
+                   (:file "parser")
+                   (:file "tests")
+                   (:file "run")))
 #+END_SRC
 
 ** Copyright
 
-Копирайт вставляется в каждый сгенерированный файл для того чтобы
-соблюсти требования лицензии AGPL
+A copyright is inserted in each generated file in order to comply with the AGPL licence requirements
 
 #+NAME: copyright
 #+BEGIN_SRC lisp
@@ -105,14 +65,39 @@ solidity-конструкциями и ожидаю получить дерев�
 
 ** Executable
 
-#+BEGIN_SRC lisp :tangle exec.lisp
-  (load "result.lisp")
+#+BEGIN_SRC lisp :tangle exec.lisp :noweb yes
+  ;; <<copyright>>
+  (defparameter *call-path*
+    (pathname (concatenate 'string (sb-posix:getcwd) "/")))
+
+  (defparameter *true-dir*
+    (let* ((truename  (or *compile-file-truename* *load-truename*))
+           (directory (if (null truename)
+                          ,*call-path*
+                          (pathname (directory-namestring truename)))))
+      directory))
+
+  (if (probe-file (merge-pathnames
+                   (make-pathname  :name "solipsism" :type "asd")
+                   ,*true-dir*))
+      (pushnew *true-dir* asdf:*central-registry* :test #'equal)
+      ;; else (IF PATH DIFFERS - CONFIGURE PATH HERE!)
+      (pushnew #P"~/src/subprotocol-parser-lib/parsers/solidity/"
+               asdf:*central-registry* :test #'equal))
+
+
+  (ql:quickload :solipsism)
+
+  (load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
+                                        :name "packages" :type "lisp")
+                         ,*true-dir*))
+
+  (load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
+                                        :name "diff-sexp" :type "lisp")
+                         ,*true-dir*))
+
 
   (ql:quickload "unix-opts")
-
-  (load "./mw-diff-sexp/packages.lisp")
-  (load "./mw-diff-sexp/diff-sexp.lisp")
-
   (use-package :mw-diff-sexp)
 
   (defun parse-filename (str)
@@ -120,7 +105,7 @@ solidity-конструкциями и ожидаю получить дерев�
 
   (opts:define-opts
     (:name :usage
-     :description "Usage solidity checker."
+     :description "Usage solidity parser."
      :short #\u
      :long "usage")
     (:name :parse
@@ -144,21 +129,21 @@ solidity-конструкциями и ожидаю получить дерев�
      ;; :required t
      :arg-parser #'parse-filename
      :meta-var "<filename>")
-    (:name :compare
-     :description "Compare contract"
-     :short #\c
-     :long "compare"
-     ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<filename>")
+    ;; (:name :compare
+    ;;  :description "Compare contract"
+    ;;  :short #\c
+    ;;  :long "compare"
+    ;;  ;; :required t
+    ;;  :arg-parser #'parse-filename
+    ;;  :meta-var "<filename>")
     ;; -------------------------------------
-    (:name :check
-     :description "Contract for checking"
-     :short #\c
-     :long "check"
-     ;; :required t
-     :arg-parser #'parse-filename
-     :meta-var "<filename>")
+    ;; (:name :check
+    ;;  :description "Contract for checking"
+    ;;  :short #\c
+    ;;  :long "check"
+    ;;  ;; :required t
+    ;;  :arg-parser #'parse-filename
+    ;;  :meta-var "<filename>")
     )
 
   (defun unknown-option (condition)
@@ -192,7 +177,7 @@ solidity-конструкциями и ожидаю получить дерев�
         (when-option (options :usage)
           (opts:describe
            :prefix "Solidity parser. Usage:"
-           :suffix "To find differences between the base contract and the checked one, use: solparser -p base.sol -c checked.sol"
+           :suffix ""
            :usage-of "./solparser"
            ;; :args "[keywords]"
            ))
@@ -205,24 +190,67 @@ solidity-конструкциями и ожидаю получить дерев�
         (when-option (options :output)
           (format t "Solidity parser. Output: ~A ~%" it)
           (setf overbox it))
-        (when-option (options :compare)
-          (format t "Solidity parser. Compare with: ~A ~%" it)
-          (setf parsed
-                (diff-sexp parsed (test-contract-file it))))
+        ;; (when-option (options :compare)
+        ;;   (format t "Solidity parser. Compare with: ~A ~%" it)
+        ;;   (setf parsed
+        ;;         (diff-sexp parsed (test-contract-file it))))
         ;; output
         (if overbox
-            (alexandria:write-string-into-file (bprint parsed) overbox :if-exists :supersede)
+            (alexandria:write-string-into-file (bprint parsed) overbox
+                                               :if-exists :supersede)
             ;; else
             (format t "~%~A~%" (bprint parsed)))
         )))
 
   (export 'main)
-  (sb-ext:save-lisp-and-die #P"solparser" :toplevel #'main :executable t)
+  (sb-ext:save-lisp-and-die
+   (merge-pathnames (make-pathname :name "solparser")
+                    ,*call-path*)
+   :toplevel #'main :executable t)
+#+END_SRC
+
+** Packages
+
+#+BEGIN_SRC lisp :tangle src/packages.lisp :noweb yes
+  ;; <<copyright>>
+  (eval-when (:compile-toplevel :load-toplevel :execute)
+    (ql:quickload '(:yacc :cl-lex :alexandria :anaphora)))
+
+  (use-package '(:cl :yacc :cl-lex :alexandria :anaphora))
+#+END_SRC
+
+** Utils
+
+#+BEGIN_SRC lisp :tangle src/utils.lisp :noweb yes
+  ;; <<copyright>>
+  (defmacro bprint (var)
+    `(subseq (with-output-to-string (*standard-output*)
+               (pprint ,var)) 1))
+
+  (defmacro err (var)
+    `(error (format nil "ERR:[~A]" (bprint ,var))))
+
+  (defun lddr (par)
+    (if (equal 2 (length par))
+        (cons (car par) (lddr (cadr par)))
+        par))
+
+  (defparameter *dbg-enable* t)
+  (defparameter *dbg-indent* 1)
+
+  (defun dbgout (out)
+    (when *dbg-enable*
+      (format t (format nil "~~%~~~AT~~A" *dbg-indent*) out)))
+
+  (defmacro dbg (frmt &rest params)
+    `(dbgout (format nil ,frmt ,@params)))
 #+END_SRC
 
 * Deleting comments
 
-#+BEGIN_SRC lisp :noweb-ref deleting_comments
+#+BEGIN_SRC lisp :tangle src/delcomments.lisp :noweb yes
+  ;; <<copyright>>
+
   (defun get-filtered-file-content (file filter)
     (let ((output (make-string-output-stream)))
       (with-open-file (input file)
@@ -277,20 +305,18 @@ solidity-конструкциями и ожидаю получить дерев�
     (clear-filter-comments)
     (get-filtered-file-content file #'filter-comments))
 
-  ;; (get-filtered-comments-file-contents #P"/home/rigidus/src/solipsism/test_contract.sol")
+  ;; (get-filtered-comments-file-contents #P"./test_contract.sol")
 #+END_SRC
 
 * Tests
 
-Для тестирования будем генерировать файлы с Solidity-кодом в подпапках
-папки ~./tests~.
+For testing we will store the Solidity code files in the ~./tests~ directory.
 
-При тестировании мы будем пробегаться по каждому из них и передавать в
-парсер. Если возникнет какая-то ошибка - процесс тестирования остановится
-и мы увидим, что произошло.
+During testing we will run through each of them and pass them to parser. If any error occurs, the testing process will stop and we will see what happened.
 
-#+NAME: tests
-#+BEGIN_SRC lisp
+#+BEGIN_SRC lisp :tangle src/tests.lisp :noweb yes :exports code
+  ;; <<copyright>>
+
   (defun map-subdir (test-dir test-fn)
     (let ((test-subdirs))
       (uiop:collect-sub*directories
@@ -408,7 +434,7 @@ solidity-конструкциями и ожидаю получить дерев�
 
   ;; (test-all "./contracts")
 
-  ;;; Вариант для получения списка всех лексем конкретного файла
+  ;;; Option to get a list of all tokens of a particular file
   ;; (let* ((file #P"./tests/test_fn_mod_inv.sol")
   ;;        (contents (read-file-into-string file))
   ;;        (clj (sol-lexer contents)))
@@ -425,15 +451,11 @@ solidity-конструкциями и ожидаю получить дерев�
 
 * Lexer
 
-Минимальный лексер - это просто функция, которая возвращает замыкание. А
-парсер уже вызывает это замыкание каждый раз когда хочет получить
-следующий токен. Замыкание при каждом вызове возвращает пару значений -
-тип токена и его значение.
+The lexer is simply a function that returns a closure. А parser already calls this closure every time it wants to get the next token. The closure each time it is called returns a pair of values - token type and value.
 
 ** DefLex macro
 
-Написание лексера в этом стиле приводит к необходимости писать множество
-повторяющихся конструкций, например:
+Writing a lexer in this style leads to the need to write many repetitive constructions, e.g:
 
 #+BEGIN_EXAMPLE lisp
   (define-string-lexer sol-lexer
@@ -443,7 +465,7 @@ solidity-конструкциями и ожидаю получить дерев�
     ...)
 #+END_EXAMPLE
 
-Поэтому более лаконично написать макрос, чтобы не повторяться:
+It is therefore more succinct to write a macro so as not to repeat oneself:
 
 #+NAME: def_lex
 #+BEGIN_SRC lisp
@@ -469,23 +491,15 @@ solidity-конструкциями и ожидаю получить дерев�
 
 ** Lexer tangle
 
-Теперь можно сформировать шаблон в который можно добавлять токены
-лексера.
+You can now generate a template into which you can add tokens tokens of the lexer.
 
-Так как лексер действует "жадно", может случиться ситуация, когда более
-специфичный токен может быть "поглощен" менее специфичным. Например,
-более специфичный "integer" может быть распознан как "int" и остаток
-"eger" вызовет ошибку распознавания. Для предупреждения таких ситуаций
-разбор более специфичных токенов переносят в начало, а менее
-специфичных - в конец. Один из самых НЕспефичных токенов - это
-identifier, он может совпасть с практически любым словом.
+Since the token lexer acts "greedily", it may happen that a more specific token may be "absorbed" by a less specific token. For example, the more specific "integer" may be recognised as "int" and the remainder "eger" will cause a recognition error. To prevent such situations the parsing of more specific tokens shall be moved to the beginning, and the parsing of less specific tokens shall be moved to the end. less specific tokens to the end. One of the most nonspecific tokens is  identifier, it can match almost any word.
 
-По этой причине в шаблоне я добавляю плейсхолдер last_lexer_tokens,
-где будут распознаваться неспецифичные токены. Эти токены я буду
-добавлять по мере разбора конструкции языка.
+For this reason, I add a last_lexer_tokens placeholder to the template, where non-specific tokens will be recognized. These tokens I will  add tokens as I parse the language construct.
 
-#+NAME: lexer
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :tangle src/lexer.lisp :noweb yes
+  ;; <<copyright>>
+
   <<def_lex>>
 
   (def-lex sol-lexer
@@ -500,15 +514,13 @@ identifier, он может совпасть с практически любы�
 
 * Parser
 
-Определяя парсер нужно задать грамматику и продукционные
-правила. Грамматика большая, поэтому я буду разбивать ее на отдельные
-компоненты в направлении сверху-вниз, следуя по конструкциям языка.
+When defining the parser, the grammar and production rules. The grammar is large, so I will break it down into its individual components in a top-down direction, following the language constructs.
 
-При разборе потребуется заполнять компоненты этой функции: терминалы,
-правила грамматики и термы.
+Parsing will require filling in the components of this function: terminals, grammar rules and terms.
 
-#+NAME: parser
-#+BEGIN_SRC lisp :noweb yes
+#+BEGIN_SRC lisp :tangle src/parser.lisp :noweb yes
+  ;; <<copyright>>
+
   (define-parser *sol-parser*
     (:start-symbol %src-unit)
     (:terminals (
@@ -1347,17 +1359,14 @@ Retlist представляет из себя два возможных вар�
 
 *** Fmeta
 
-Следующая важная часть - это то, что в определении функции может
-находиться между параметрами функции и возвращаемыми значениями. Там
-может быть следующее:
+The next important part is what the function definition can  between the function parameters and the return values. There  may be the following:
 - visibility
 - state-mutability
 - modifier-invocation
 - virtual
 - override-specifier
 
-Все эти вещи могут быть вместе или по-отдельности, и все они
-необязательны, поэтому лучше их вынести в отдельное мета-правило:
+All of these things can be together or separately, and they are all optional  are optional, so it's best to put them in a separate meta-rule:
 
 #+BEGIN_SRC lisp :noweb-ref func_def_contents
   (%function %identifier %parlist %fmeta %retlist %block
@@ -1371,8 +1380,7 @@ Retlist представляет из себя два возможных вар�
 
 #+END_SRC
 
-Эта мета правило является рамочным правилом для всех выше перечисленных
-пунктов во всех возможных комбинациях:
+This meta-rule is a framework rule for all the above items in all possible combinations  items in all possible combinations:
 
 #+BEGIN_SRC lisp :noweb yes :noweb-ref grammar_rules
   (%fmeta
@@ -1380,7 +1388,7 @@ Retlist представляет из себя два возможных вар�
    )
 #+END_SRC
 
-Все эти комбинации генерируются в tangle-time:
+All these combinations are generated in tangle-time:
 
 #+NAME: fmeta-combination
 #+BEGIN_SRC elisp :results output :tangle generator.el
@@ -4354,71 +4362,3 @@ https://docs.soliditylang.org/en/latest/grammar.html#a4.SolidityParser.booleanLi
 #+END_SRC
 **** TODO HexStringLiteral
 **** TODO Unicode-string-literal
-* Макросы для корректного вывода ошибок
-
-#+NAME: macro_bprint
-#+BEGIN_SRC lisp
-  (defmacro bprint (var)
-    `(subseq (with-output-to-string (*standard-output*)  (pprint ,var)) 1))
-#+END_SRC
-
-#+NAME: macro_err
-#+BEGIN_SRC lisp
-  (defmacro err (var)
-    `(error (format nil "ERR:[~A]" (bprint ,var))))
-#+END_SRC
-
-* Отладочный вывод
-
-#+NAME: dbgout
-#+BEGIN_SRC lisp
-  (defparameter *dbg-enable* t)
-  (defparameter *dbg-indent* 1)
-
-  (defun dbgout (out)
-    (when *dbg-enable*
-      (format t (format nil "~~%~~~AT~~A" *dbg-indent*) out)))
-
-  (defmacro dbg (frmt &rest params)
-    `(dbgout (format nil ,frmt ,@params)))
-#+END_SRC
-
-* Макросы для преобразования порядка аргументов
-
-#+NAME: macro_clj
-#+BEGIN_SRC lisp
-  (defmacro -> (x &optional form &rest more)
-    "Thread the expr through the forms. Insert X as the second item
-  in the first form, making a list of it if it is not a list
-  already. If there are more forms, insert the first form as the
-  second item in second form, etc."
-    (cond
-      ((null form) x)
-      ((null more) (if (listp form)
-                       `(,(car form) ,x ,@(cdr form))
-                       (list form x)))
-      (:else `(-> (-> ,x ,form) ,@more))))
-
-  ;; (-> 5 1- ODDP)
-  ;; => (-> (-> 5 1-) ODDP)
-  ;; => (ODDP (-> 5 1-))
-  ;; => (ODDP (1- 5))
-
-  ;; (sb-cltl2:macroexpand-all '(-> 'first (cons 'second) (cons 'third)))
-  ;; => (CONS (CONS 'FIRST 'SECOND) 'THIRD)
-
-  (defmacro ->> (x &optional form &rest more)
-    "Thread the expr through the forms. Insert X as the last item
-  in the first form, making a list of it if it is not a list
-  already. If there are more forms, insert the first form as the
-  last item in second form, etc."
-    (cond
-      ((null form) x)
-      ((null more) (if (listp form)
-                       `(,@form ,x)
-                       (list form x)))
-      (:else `(->> (->> ,x ,form) ,@more))))
-
-  ;; (sb-cltl2:macroexpand-all '(->> 'first (cons 'second) (cons 'third)))
-  ;; => (CONS 'THIRD (CONS 'SECOND 'FIRST))
-#+END_SRC

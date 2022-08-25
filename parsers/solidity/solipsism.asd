@@ -1,4 +1,3 @@
-;; [[file:doc.org::defsystem][defsystem]]
 ;; Copyright © 2021-2022 Glukhov Mikhail. All rights reserved. Licensed
 ;; under the GNU AGPLv3
 (asdf:defsystem #:solipsism
@@ -8,5 +7,11 @@
   :description  "solipsism"
   :depends-on   (#:yacc #:cl-lex #:alexandria #:anaphora)
   :serial       t
-  :components   ((:file "result.lisp")))
-;; defsystem ends here
+  :pathname     "src"
+  :components   ((:file "packages")
+                 (:file "utils")
+                 (:file "delcomments")
+                 (:file "lexer")
+                 (:file "parser")
+                 (:file "tests")
+                 (:file "run")))
