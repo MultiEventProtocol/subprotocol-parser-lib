@@ -1,5 +1,6 @@
 ;; Copyright © 2021-2022 Glukhov Mikhail. All rights reserved. Licensed
 ;; under the GNU AGPLv3
+(in-package #:solipsism)
 
 (defun map-subdir (test-dir test-fn)
   (let ((test-subdirs))

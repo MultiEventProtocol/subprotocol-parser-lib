@@ -1,3 +1,6 @@
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ql:quickload '(:solipsism)))
+
 (load "transpiler.lisp")
 
 (ql:quickload "unix-opts")
@@ -58,7 +61,7 @@
         (opts:describe
          :prefix "Transpiler. Usage:"
          :suffix "use: transpiler -p example.sexp"
-         :usage-of "./traspiler"
+         :usage-of "./transpiler"
          ;; :args "[keywords]"
          ))
       (when-option (options :transpile)

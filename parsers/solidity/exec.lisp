@@ -18,8 +18,8 @@
     (pushnew #P"~/src/subprotocol-parser-lib/parsers/solidity/"
              asdf:*central-registry* :test #'equal))
 
-
-(ql:quickload :solipsism)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ql:quickload '(:solipsism)))
 
 (load (merge-pathnames (make-pathname :directory '(:relative "mw-diff-sexp")
                                       :name "packages" :type "lisp")
@@ -32,6 +32,7 @@
 
 (ql:quickload "unix-opts")
 (use-package :mw-diff-sexp)
+(use-package :solipsism)
 
 (defun parse-filename (str)
   str)
@@ -116,10 +117,10 @@
          ))
       (when-option (options :parse)
         (format t "Solidity parser. Parse file: ~A ~%" it)
-        (setf parsed (test-contract-file it)))
+        (setf parsed (solipsism:test-contract-file it)))
       (when-option (options :test)
         (format t "Solidity parser. Test in directory: ~A ~%" it)
-        (setf parsed (test-all-contracts it)))
+        (setf parsed (solipsism:test-all-contracts it)))
       (when-option (options :output)
         (format t "Solidity parser. Output: ~A ~%" it)
         (setf overbox it))
